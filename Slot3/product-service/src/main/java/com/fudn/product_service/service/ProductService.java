@@ -42,15 +42,18 @@ public class ProductService {
 
 
     public ProductResponse updateProduct(String id, ProductRequest productRequest) {
-        // TODO: viết logic update tại đây
-
-        throw new UnsupportedOperationException(
-                "TODO: Sinh vien chua implement updateProduct()");
+        Product product = productRepository.findById(id).orElseThrow(() -> new ProductNotFoundException(id));
+        product.setName(productRequest.getName());
+        product.setDescription(productRequest.getDescription());
+        product.setPrice(productRequest.getPrice());
+        productRepository.save(product);
+        return new ProductResponse(product.getId(), product.getName(), product.getDescription(), product.getPrice());
     }
 
     public void deleteProduct(String id) {
-        // TODO: viết logic delete tại đây
-        throw new UnsupportedOperationException(
-                "TODO: Sinh vien chua implement deleteProduct()");
+        if (!productRepository.existsById(id)) {
+            throw new ProductNotFoundException(id);
+        }
+        productRepository.deleteById(id);
     }
 }
