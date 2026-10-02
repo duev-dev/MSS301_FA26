@@ -105,6 +105,13 @@
             <artifactId>testcontainers-mysql</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- TODO 3.7: WireMock chinh thuc cho Spring Boot (thay spring-cloud-starter-contract-stub-runner) -->
+        <dependency>
+            <groupId>org.wiremock.integrations</groupId>
+            <artifactId>wiremock-spring-boot</artifactId>
+            <version>4.2.3</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <!-- TODO 3.1: Spring Cloud BOM -->
