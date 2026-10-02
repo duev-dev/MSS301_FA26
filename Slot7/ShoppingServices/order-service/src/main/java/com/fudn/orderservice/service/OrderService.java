@@ -1,5 +1,6 @@
 package com.fudn.orderservice.service;
 
+import com.fudn.orderservice.client.InventoryClient;
 import com.fudn.orderservice.dto.OrderRequest;
 import com.fudn.orderservice.model.Order;
 import com.fudn.orderservice.repository.OrderRepository;
@@ -15,10 +16,21 @@ import java.util.UUID;
 public class OrderService {
 
     private final OrderRepository orderRepository;
+    private final InventoryClient inventoryClient;   // TODO 3.4: inject FeignClient
 
     public void placeOrder(OrderRequest orderRequest) {
-        var order = mapToOrder(orderRequest);
-        orderRepository.save(order);
+        // 1. Goi dong bo sang Inventory Service
+        boolean inStock = inventoryClient.isInStock(
+                orderRequest.skuCode(), orderRequest.quantity());
+
+        // 2. Con hang -> luu don; het hang -> nem exception
+        if (inStock) {
+            Order order = mapToOrder(orderRequest);
+            orderRepository.save(order);
+        } else {
+            throw new RuntimeException(
+                    "Product with SkuCode " + orderRequest.skuCode() + " is not in stock");
+        }
     }
 
     private static Order mapToOrder(OrderRequest orderRequest) {
