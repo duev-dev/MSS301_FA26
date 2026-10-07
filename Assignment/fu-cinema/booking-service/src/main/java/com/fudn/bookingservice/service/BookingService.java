@@ -25,6 +25,8 @@ import java.util.*;
 @Transactional(readOnly = true)
 public class BookingService {
 
+    private static final String ROLE_ADMIN = "ADMIN";
+
     private final BookingRepository bookingRepository;
     private final BookingDetailRepository bookingDetailRepository;
     private final MovieClient movieClient;
@@ -111,6 +113,11 @@ public class BookingService {
                 .stream().map(BookingResponse::from).toList();
     }
 
+    // TODO 8.2
+    public BookingResponse getById(Long bookingId, Long userId, String role) {
+        return BookingResponse.from(findAccessible(bookingId, userId, role));
+    }
+
     // ======================= HELPER =======================
 
     private ShowtimeResponse fetchShowtime(String showtimeId) {
@@ -142,5 +149,15 @@ public class BookingService {
             throw ApiException.badRequest("Seat " + seat + " does not exist in room " + st.roomName()
                     + " (rows A-" + lastRow + ", seats 1-" + st.seatsPerRow() + ")");
         }
+    }
+
+    /** BR11: Customer chi truy cap booking cua minh, Admin truy cap tat ca */
+    private Booking findAccessible(Long bookingId, Long userId, String role) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> ApiException.notFound("Booking not found with id: " + bookingId));
+        if (!ROLE_ADMIN.equals(role) && !booking.getCustomerId().equals(userId)) {
+            throw ApiException.forbidden("You can only access your own bookings");
+        }
+        return booking;
     }
 }
