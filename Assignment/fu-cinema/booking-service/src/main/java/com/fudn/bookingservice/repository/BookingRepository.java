@@ -3,5 +3,11 @@ package com.fudn.bookingservice.repository;
 import com.fudn.bookingservice.model.Booking;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
+
 public interface BookingRepository extends JpaRepository<Booking, Long> {
+
+    List<Booking> findByCustomerIdOrderByBookingDateDesc(Long customerId);
+
+    List<Booking> findAllByOrderByBookingDateDesc();
 }
