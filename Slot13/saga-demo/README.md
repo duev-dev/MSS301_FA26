@@ -54,7 +54,10 @@ docker compose logs -f order-service  # xem log Saga
 
 Import [`Saga_Postman_Collection.json`](Saga_Postman_Collection.json). Collection dùng biến `orderUrl`, `inventoryUrl`, `paymentUrl` (mặc định `localhost:8081/8082/8083`). Các test so sánh **độ chênh lệch** kho/ví trước–sau, nên chạy được cả khi chưa reset DB.
 
-- **Runner:** chạy collection, **bỏ chọn** thư mục *Thủ công*, giữ thứ tự `0 → KB1 → KB2 → KB3 → KB4 → KB5 → KB7`.
+- **Runner:** chạy collection, **bỏ chọn** thư mục *Thủ công*, giữ thứ tự `0 → KB1 → KB2 → KB3 → KB4 → KB5 → KB7 → 9 - Dọn dẹp`.
+  - KB1 thành công sẽ trừ hẳn 2000 của C1 và 2 P1. Thư mục *9 - Dọn dẹp* gọi `refund` + `release` order KB1 để trả lại, nhờ vậy Runner chạy lặp lại bao nhiêu lần cũng được.
+  - Snapshot của KB1 kiểm tra trước `C1 >= 2000` và `P1 >= 2`. Nếu test này fail (ví dụ đã chạy Runner nhiều lần mà bỏ thư mục Dọn dẹp), chạy `docker compose down -v` rồi `docker compose up -d` để reset dữ liệu.
+  - KB6/KB8 phải **tắt service trước khi gửi** request đặt hàng. Nếu quên, đơn sẽ `CONFIRMED` và trừ 20 của C1.
 - **Newman:**
 
   ```bash
@@ -62,7 +65,7 @@ Import [`Saga_Postman_Collection.json`](Saga_Postman_Collection.json). Collectio
     --folder "0 - Kiểm tra service" --folder "KB1 - Happy path" \
     --folder "KB2 - Thanh toán thất bại (402)" --folder "KB3 - Hết hàng (409)" \
     --folder "KB4 - Sản phẩm không tồn tại (404 inventory)" --folder "KB5 - Ví không tồn tại (404 payment)" \
-    --folder "KB7 - Idempotent (gọi lặp lại)"
+    --folder "KB7 - Idempotent (gọi lặp lại)" --folder "9 - Dọn dẹp (trả lại tiền & kho của KB1)"
   ```
 
 - **KB6 (thủ công):** `[KB6] 1` → `docker compose stop payment-service` → `[KB6] 2` → `docker compose start payment-service` → `[KB6] 3, 4`.

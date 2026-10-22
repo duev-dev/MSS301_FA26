@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "MSS301 - Saga Demo (Spring Boot 4.1.1)",
-    "description": "Order Saga (Orchestration): order-service (MySQL) → inventory-service (MongoDB) → payment-service (SQL Server). Chạy Runner theo thứ tự 0 → KB1 → KB2 → KB3 → KB4 → KB5 → KB7, bỏ thư mục Thủ công.",
+    "description": "Order Saga (Orchestration): order-service (MySQL) → inventory-service (MongoDB) → payment-service (SQL Server). Chạy Runner theo thứ tự 0 → KB1 → KB2 → KB3 → KB4 → KB5 → KB7 → 9 - Dọn dẹp, bỏ thư mục Thủ công. Thư mục Dọn dẹp trả lại tiền/kho của KB1 để chạy lặp lại được.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -119,6 +119,10 @@
                   "pm.sendRequest(pm.collectionVariables.get(\"paymentUrl\") + \"/api/payments/wallets\", (err, res) => {",
                   "    pm.test(\"Đọc được số dư ví\", () => pm.expect(err).to.be.null);",
                   "    res.json().forEach(w => pm.collectionVariables.set(\"bal_\" + w.customerId, w.balance));",
+                  "    const stock = Number(pm.collectionVariables.get(\"stock_P1\"));",
+                  "    const bal = Number(pm.collectionVariables.get(\"bal_C1\"));",
+                  "    pm.test(`Đủ điều kiện chạy KB1 (P1=${stock} >= 2, C1=${bal} >= 2000) - nếu fail: chạy \"docker compose down -v\" để reset dữ liệu`,",
+                  "        () => pm.expect(stock >= 2 && bal >= 2000).to.be.true);",
                   "});"
                 ]
               }
@@ -1253,6 +1257,157 @@
           }
         }
       ]
+    },
+    {
+      "name": "9 - Dọn dẹp (trả lại tiền & kho của KB1)",
+      "item": [
+        {
+          "name": "[Dọn dẹp] 1. Snapshot kho & ví",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "// Lưu tồn kho hiện tại: stock_P1, stock_P2",
+                  "pm.response.json().forEach(p => pm.collectionVariables.set(\"stock_\" + p.id, p.stock));",
+                  "// Lưu số dư ví hiện tại: bal_C1, bal_C2",
+                  "pm.sendRequest(pm.collectionVariables.get(\"paymentUrl\") + \"/api/payments/wallets\", (err, res) => {",
+                  "    pm.test(\"Đọc được số dư ví\", () => pm.expect(err).to.be.null);",
+                  "    res.json().forEach(w => pm.collectionVariables.set(\"bal_\" + w.customerId, w.balance));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventoryUrl}}/api/inventory/products",
+              "host": [
+                "{{inventoryUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventory",
+                "products"
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Dọn dẹp] 2. Refund order KB1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{paymentUrl}}/api/payments/refund/{{kb1OrderId}}",
+              "host": [
+                "{{paymentUrl}}"
+              ],
+              "path": [
+                "api",
+                "payments",
+                "refund",
+                "{{kb1OrderId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Dọn dẹp] 3. Release order KB1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{inventoryUrl}}/api/inventory/release/{{kb1OrderId}}",
+              "host": [
+                "{{inventoryUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventory",
+                "release",
+                "{{kb1OrderId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Dọn dẹp] 4. Kho & ví đã được trả lại",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Độ chênh lệch mong đợi so với lúc Snapshot",
+                  "const expectStock = {\"P1\":2};",
+                  "const expectBal = {\"C1\":2000};",
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.response.json().forEach(p => {",
+                  "    if (p.id in expectStock) {",
+                  "        const before = Number(pm.collectionVariables.get(\"stock_\" + p.id));",
+                  "        pm.test(`Tồn kho ${p.id}: ${before} -> ${before + expectStock[p.id]}`,",
+                  "            () => pm.expect(p.stock).to.eql(before + expectStock[p.id]));",
+                  "    }",
+                  "});",
+                  "pm.sendRequest(pm.collectionVariables.get(\"paymentUrl\") + \"/api/payments/wallets\", (err, res) => {",
+                  "    pm.test(\"Đọc được số dư ví\", () => pm.expect(err).to.be.null);",
+                  "    res.json().forEach(w => {",
+                  "        if (w.customerId in expectBal) {",
+                  "            const before = Number(pm.collectionVariables.get(\"bal_\" + w.customerId));",
+                  "            pm.test(`Số dư ${w.customerId}: ${before} -> ${before + expectBal[w.customerId]}`,",
+                  "                () => pm.expect(w.balance).to.eql(before + expectBal[w.customerId]));",
+                  "        }",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventoryUrl}}/api/inventory/products",
+              "host": [
+                "{{inventoryUrl}}"
+              ],
+              "path": [
+                "api",
+                "inventory",
+                "products"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Chỉ để collection chạy lặp lại được: KB1 thành công sẽ trừ hẳn 2000 của C1 và 2 P1. Thư mục này gọi refund + release (idempotent) để trả lại. Chạy SAU KB7."
     },
     {
       "name": "Thủ công (không chạy bằng Runner)",
