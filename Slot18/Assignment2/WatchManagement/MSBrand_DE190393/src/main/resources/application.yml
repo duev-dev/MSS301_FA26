@@ -1,0 +1,26 @@
+# [TODO-2.2: datasource DBBrand + naming strategy]
+server:
+  port: 8082
+
+spring:
+  application:
+    name: ms-brand
+  datasource:
+    url: jdbc:sqlserver://${DB_HOST:localhost}:${DB_PORT:1433};databaseName=DBBrand;encrypt=true;trustServerCertificate=true
+    username: sa
+    password: ${DB_PASSWORD:YourStrong@Password123}
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+      naming:
+        # Giữ NGUYÊN tên trong @Table/@Column (StoreAccounts, WatchID...) đúng như đề bài.
+        # Mặc định Spring Boot đổi thành store_accounts, watch_id...
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    show-sql: false
+    # Hibernate 7 tự nhận dialect SQL Server từ JDBC metadata -> không cần khai báo hibernate.dialect
+
+logging:
+  level:
+    com.mss301.brand: INFO
