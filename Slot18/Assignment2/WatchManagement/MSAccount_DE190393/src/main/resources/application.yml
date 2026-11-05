@@ -1,4 +1,4 @@
-# [TODO-2.2: datasource DBAccount + naming strategy]
+# [TODO-2.2, TODO-3.2: datasource DBAccount + naming strategy, cấu hình JWT]
 server:
   port: 8081
 
@@ -20,6 +20,11 @@ spring:
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
     show-sql: false
     # Hibernate 7 tự nhận dialect SQL Server từ JDBC metadata -> không cần khai báo hibernate.dialect
+
+jwt:
+  secret: ${JWT_SECRET:mss301-watch-management-secret-key-2025-very-long-string}
+  expiration: ${JWT_EXPIRATION:900000}
+  refresh-expiration: ${REFRESH_EXPIRATION:604800000}
 
 logging:
   level:
