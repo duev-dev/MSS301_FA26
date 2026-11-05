@@ -1,0 +1,13 @@
+# [TODO-0.1] Commit message template - cài bằng: git config commit.template .gitmessage
+# <type>(<scope>): <subject>          (<= 72 ký tự, tiếng Anh, động từ nguyên mẫu, không dấu chấm)
+#
+# type : feat | fix | refactor | build | test | docs | chore | perf | style | ci
+# scope: ms-account | ms-brand | ms-watch | gateway | docker | postman | config
+#
+# Body (tuỳ chọn): giải thích VÌ SAO thay đổi, không chỉ LÀM GÌ. Xuống dòng ở ~72 ký tự.
+#
+# Footer:
+#   Refs: TODO-6.9
+#   BREAKING CHANGE: <mô tả thay đổi không tương thích>
+#
+# Cài template: git config commit.template .gitmessage
