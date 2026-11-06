@@ -1,0 +1,138 @@
+{
+  "info": {
+    "name": "WatchManagement - Evidence Buoc 3-5 (DE190393)",
+    "description": "Gọi trực tiếp MSAccount :8081 và MSBrand :8082 để chụp minh chứng checklist Bước 3 và Bước 5. Chạy tuần tự từ trên xuống.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "account", "value": "http://localhost:8081" },
+    { "key": "brand", "value": "http://localhost:8082" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Buoc 3 - MSAccount",
+      "item": [
+        {
+          "name": "3.1 Login adminsys -> 200",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data;",
+            "pm.test('role = 1, có accessToken + refreshToken', () => { pm.expect(d.role).to.eql(1); pm.expect(d.accessToken).to.be.a('string'); pm.expect(d.refreshToken).to.be.a('string'); });",
+            "pm.collectionVariables.set('accessToken', d.accessToken);",
+            "pm.collectionVariables.set('refreshToken', d.refreshToken);",
+            "const p = JSON.parse(atob(d.accessToken.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));",
+            "console.log('JWT payload', p);",
+            "pm.test('payload có sub, role, type=access, exp = iat + 15 phút', () => { pm.expect(p.sub).to.eql('1'); pm.expect(p.type).to.eql('access'); pm.expect(p.exp - p.iat).to.eql(900); });"
+          ] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"username\": \"adminsys\", \"password\": \"@1\" }" },
+            "url": "{{account}}/api/auth/login" }
+        },
+        {
+          "name": "3.2 Login member02 (inactive) -> 403",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('403 Account is inactive', () => { pm.response.to.have.status(403); pm.expect(pm.response.json().message).to.eql('Account is inactive'); });"
+          ] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"username\": \"member02\", \"password\": \"@1\" }" },
+            "url": "{{account}}/api/auth/login" }
+        },
+        {
+          "name": "3.3 Login sai mật khẩu -> 401",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"
+          ] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"username\": \"adminsys\", \"password\": \"wrong\" }" },
+            "url": "{{account}}/api/auth/login" }
+        },
+        {
+          "name": "3.4 Login thiếu username -> 400",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('400 Bad Request', () => pm.response.to.have.status(400));"
+          ] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"password\": \"@1\" }" },
+            "url": "{{account}}/api/auth/login" }
+        },
+        {
+          "name": "3.5 Refresh bằng refreshToken -> 200",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200 OK, có accessToken mới', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().data.accessToken).to.be.a('string'); });"
+          ] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"refreshToken\": \"{{refreshToken}}\" }" },
+            "url": "{{account}}/api/auth/refresh" }
+        },
+        {
+          "name": "3.6 Refresh bằng accessToken -> 401",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('401 Token is not a refresh token', () => { pm.response.to.have.status(401); pm.expect(pm.response.json().message).to.eql('Token is not a refresh token'); });"
+          ] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"refreshToken\": \"{{accessToken}}\" }" },
+            "url": "{{account}}/api/auth/refresh" }
+        }
+      ]
+    },
+    {
+      "name": "Buoc 5 - MSBrand",
+      "item": [
+        {
+          "name": "5.1 GET /api/brands -> watchCount 2,2,2,3,1",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const counts = pm.response.json().data.map(b => b.brandName + '=' + b.watchCount);",
+            "pm.test('Rolex 2, Omega 2, Seiko 2, Casio 3, TAG Heuer 1', () => pm.expect(counts).to.eql(['Rolex=2','Omega=2','Seiko=2','Casio=3','TAG Heuer=1']));"
+          ] } }],
+          "request": { "method": "GET", "url": "{{brand}}/api/brands" }
+        },
+        {
+          "name": "5.2 PUT assign 1/99 (lần 1) -> 200",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200 ASSIGNED', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().data.status).to.eql('ASSIGNED'); });"
+          ] } }],
+          "request": { "method": "PUT", "url": "{{brand}}/internal/brands/1/watches/99" }
+        },
+        {
+          "name": "5.3 PUT assign 1/99 (lần 2, idempotent) -> 200",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200 ASSIGNED, previousBrandId = 1', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().data.previousBrandId).to.eql(1); });"
+          ] } }],
+          "request": { "method": "PUT", "url": "{{brand}}/internal/brands/1/watches/99" }
+        },
+        {
+          "name": "5.4 GET brand 1 watches -> chỉ 1 dòng WatchID 99",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const ids = pm.response.json().data.watchIds;",
+            "pm.test('WatchID 99 xuất hiện đúng 1 lần', () => pm.expect(ids.filter(i => i === 99).length).to.eql(1));"
+          ] } }],
+          "request": { "method": "GET", "url": "{{brand}}/api/brands/1/watches" }
+        },
+        {
+          "name": "5.5 PUT assign brand 999 -> 404",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('404 Brand not found with id: 999', () => { pm.response.to.have.status(404); pm.expect(pm.response.json()).to.eql({ success: false, message: 'Brand not found with id: 999' }); });"
+          ] } }],
+          "request": { "method": "PUT", "url": "{{brand}}/internal/brands/999/watches/99" }
+        },
+        {
+          "name": "5.6 DELETE unassign 99 (lần 1) -> UNASSIGNED",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200 UNASSIGNED', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().data.status).to.eql('UNASSIGNED'); });"
+          ] } }],
+          "request": { "method": "DELETE", "url": "{{brand}}/internal/brands/watches/99" }
+        },
+        {
+          "name": "5.7 DELETE unassign 99 (lần 2) -> NOTHING_TO_DO",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200 NOTHING_TO_DO', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().data.status).to.eql('NOTHING_TO_DO'); });"
+          ] } }],
+          "request": { "method": "DELETE", "url": "{{brand}}/internal/brands/watches/99" }
+        }
+      ]
+    }
+  ]
+}
